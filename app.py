@@ -136,16 +136,12 @@ def index():
     chart_spec = chart.to_dict()
     chart_json = json.dumps(chart_spec)
     
-    # Convert dataframe to JSON for display
-    df_json = df.to_json(orient='records')
-    
     return render_template(
         "index.html",
         chart_types=CHART_TYPES,
         data_types=DATA_TYPES,
         available_fields=available_fields,
         chart_json=chart_json,
-        data_json=df_json,
         selected_chart_type=chart_type,
         selected_x_field=x_field,
         selected_x_type=x_type,
