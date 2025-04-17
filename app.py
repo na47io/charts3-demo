@@ -1,47 +1,42 @@
-from flask import Flask, request, jsonify, render_template
+from flask import Flask, request, render_template, jsonify
 import altair as alt
 from flask_cors import CORS
+import pandas as pd
+import numpy as np
+import json
 
 app = Flask(__name__)
 CORS(app)  # Enable CORS for all routes
 
+# Chart types supported by the application
+CHART_TYPES = {
+    "line": "Line Chart",
+    "bar": "Bar Chart",
+    "point": "Scatter Plot",
+    "area": "Area Chart",
+    "boxplot": "Box Plot",
+    "heatmap": "Heatmap"
+}
 
-# Sample data
-def get_sample_data():
-    return [
-        {"x": 1, "y": 10, "category": "A", "value": 15, "date": "2023-01-01"},
-        {"x": 2, "y": 15, "category": "B", "value": 8, "date": "2023-01-02"},
-        {"x": 3, "y": 7, "category": "A", "value": 20, "date": "2023-01-03"},
-        {"x": 4, "y": 20, "category": "B", "value": 12, "date": "2023-01-04"},
-        {"x": 5, "y": 12, "category": "A", "value": 30, "date": "2023-01-05"},
-        {"x": 6, "y": 18, "category": "B", "value": 18, "date": "2023-01-06"},
-        {"x": 7, "y": 25, "category": "A", "value": 5, "date": "2023-01-07"},
-        {"x": 8, "y": 15, "category": "B", "value": 22, "date": "2023-01-08"},
-        {"x": 9, "y": 8, "category": "A", "value": 28, "date": "2023-01-09"},
-        {"x": 10, "y": 14, "category": "B", "value": 15, "date": "2023-01-10"},
-    ]
+# Data types for Altair encodings
+DATA_TYPES = {
+    "quantitative": "Quantitative",
+    "nominal": "Nominal", 
+    "ordinal": "Ordinal",
+    "temporal": "Time"
+}
 
+def generate_sample_dataframe():
+    """Generate a simple dataframe with two columns for visualization."""
+    # Create a simple dataframe with x and y values
+    return pd.DataFrame({
+        "x": np.arange(1, 101),
+        "y": np.random.normal(50, 15, 100)
+    })
 
-@app.route("/")
-def index():
-    return render_template("index.html")
-
-
-@app.route("/api/chart-spec")
-def get_chart():
-    """Generate an Altair chart specification based on query parameters."""
-    # Get the chart type, fields and their types from the request
-    chart_type = request.args.get("type", "line")
-    x_field = request.args.get("x", "x")
-    x_type = request.args.get("xType", "quantitative")
-    y_field = request.args.get("y", "y")
-    y_type = request.args.get("yType", "quantitative")
-    color_field = request.args.get("color", None)
-    color_type = request.args.get("colorType", "nominal")
-    title = request.args.get("title", "")
-
-    # Create base chart
-    chart = None
+def create_chart(chart_type, x_field, x_type, y_field, y_type, color_field=None, color_type="nominal", title=""):
+    """Create an Altair chart based on parameters."""
+    # Create base chart based on chart type
     if chart_type == "bar":
         chart = alt.Chart().mark_bar()
     elif chart_type == "area":
@@ -49,61 +44,124 @@ def get_chart():
     elif chart_type == "line":
         chart = alt.Chart().mark_line()
     elif chart_type == "point" or chart_type == "scatter":
-        chart = alt.Chart().mark_point()
-    elif chart_type == "circle":
         chart = alt.Chart().mark_circle()
     elif chart_type == "boxplot":
         chart = alt.Chart().mark_boxplot()
     elif chart_type == "heatmap":
         chart = alt.Chart().mark_rect()
     else:
-        # Default to bar chart
-        chart = alt.Chart().mark_bar()
+        # Default to line chart
+        chart = alt.Chart().mark_line()
 
-    # Start building the encoding
+    # Add encodings with explicit types
     encoding = {
         "x": {"field": x_field, "type": x_type},
         "y": {"field": y_field, "type": y_type},
     }
 
-    # Add color encoding if specified
     if color_field:
         encoding["color"] = {"field": color_field, "type": color_type}
 
-    # Add tooltip with all fields
-    encoding["tooltip"] = [
-        {"field": "x", "type": x_type},
-        {"field": "y", "type": y_type},
+    # Add tooltip
+    tooltip_fields = [
+        {"field": x_field, "type": x_type},
+        {"field": y_field, "type": y_type}
     ]
-
+    
     if color_field:
-        encoding["tooltip"].append({"field": color_field, "type": color_type})
+        tooltip_fields.append({"field": color_field, "type": color_type})
+        
+    encoding["tooltip"] = tooltip_fields
 
-    # Create the chart with the encoding
+    # Apply encoding to chart
     chart = chart.encode(**encoding)
-
+    
     # Add title if provided
     if title:
         chart = chart.properties(title=title)
 
     # Add config for better appearance
-    chart = (
-        chart.configure_view(
-            strokeWidth=0,
-        )
-        .configure_axis(grid=False)
-        .properties(width="container", height=300)
+    chart = chart.configure_view(
+        strokeWidth=0,
+    ).configure_axis(
+        grid=False
+    ).properties(
+        width="container",
+        height=300
     )
+    
+    return chart
 
-    # Convert to Vega-Lite spec
-    spec = chart.to_dict()
-    return jsonify(spec)
+
+@app.route("/", methods=["GET", "POST"])
+def index():
+    # Get the dataframe
+    df = generate_sample_dataframe()
+    available_fields = list(df.columns)
+    
+    # Default chart parameters
+    chart_type = "line"
+    x_field = "x"
+    x_type = "quantitative"
+    y_field = "y" 
+    y_type = "quantitative"
+    color_field = ""
+    color_type = "nominal"
+    title = ""
+    
+    # If form was submitted, get the chart parameters
+    if request.method == "POST":
+        chart_type = request.form.get("chart_type", chart_type)
+        x_field = request.form.get("x_field", x_field)
+        x_type = request.form.get("x_type", x_type)
+        y_field = request.form.get("y_field", y_field)
+        y_type = request.form.get("y_type", y_type)
+        color_field = request.form.get("color_field", color_field)
+        color_type = request.form.get("color_type", color_type)
+        title = request.form.get("title", title)
+    
+    # Create the chart
+    chart = create_chart(
+        chart_type, 
+        x_field, 
+        x_type, 
+        y_field, 
+        y_type, 
+        color_field if color_field else None, 
+        color_type,
+        title
+    )
+    
+    # Generate chart spec and HTML for embedding
+    chart_spec = chart.to_dict()
+    chart_json = json.dumps(chart_spec)
+    
+    # Convert dataframe to JSON for display
+    df_json = df.to_json(orient='records')
+    
+    return render_template(
+        "index.html",
+        chart_types=CHART_TYPES,
+        data_types=DATA_TYPES,
+        available_fields=available_fields,
+        chart_json=chart_json,
+        data_json=df_json,
+        selected_chart_type=chart_type,
+        selected_x_field=x_field,
+        selected_x_type=x_type,
+        selected_y_field=y_field,
+        selected_y_type=y_type,
+        selected_color_field=color_field,
+        selected_color_type=color_type,
+        selected_title=title
+    )
 
 
 @app.route("/api/data.json")
 def get_data():
-    """Return sample data for the chart."""
-    return jsonify(get_sample_data())
+    """Return the dataframe as JSON for the chart."""
+    df = generate_sample_dataframe()
+    return df.to_json(orient='records')
 
 
 if __name__ == "__main__":

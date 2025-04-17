@@ -36,7 +36,7 @@
         margin-bottom: 20px;
       }
 
-      #spec-display {
+      #chart-spec {
         width: 100%;
         height: 200px;
         font-family: monospace;
@@ -127,7 +127,7 @@
   </head>
   <body>
     <h1>Altair Chart Builder</h1>
-    <p>Build and customize charts with Altair specs on the server and apply them to your data.</p>
+    <p>Build and customize charts with Altair specs and apply them to your data.</p>
 
     <div class="container">
       <div class="chart-area">
@@ -141,11 +141,11 @@
           <!-- Chart is displayed in #vis above -->
         </div>
         <div class="tab-content" id="spec-tab">
-          <pre id="spec-display"></pre>
+          <pre id="chart-spec">{{ chart_json }}</pre>
         </div>
         <div class="tab-content" id="data-tab">
           <div class="sample-data">
-            <pre id="sample-data"></pre>
+            <pre id="sample-data">{{ data_json }}</pre>
           </div>
         </div>
       </div>
@@ -153,258 +153,124 @@
       <div class="controls-area">
         <div class="controls">
           <h3>Chart Configuration</h3>
+          <form method="POST" action="/">
+            <div class="control-group">
+              <label for="chart_type">Chart Type:</label>
+              <select id="chart_type" name="chart_type">
+                {% for type_value, type_label in chart_types.items() %}
+                <option value="{{ type_value }}" {% if type_value == selected_chart_type %}selected{% endif %}>
+                  {{ type_label }}
+                </option>
+                {% endfor %}
+              </select>
+            </div>
 
-          <div class="control-group">
-            <label for="chart-type">Chart Type:</label>
-            <select id="chart-type">
-              <option value="line">Line</option>
-              <option value="bar">Bar</option>
-              <option value="point">Scatter</option>
-              <option value="area">Area</option>
-              <option value="boxplot">Boxplot</option>
-              <option value="heatmap">Heatmap</option>
-            </select>
-          </div>
+            <div class="control-group">
+              <label for="x_field">X Field:</label>
+              <select id="x_field" name="x_field">
+                {% for field in available_fields %}
+                <option value="{{ field }}" {% if field == selected_x_field %}selected{% endif %}>
+                  {{ field }}
+                </option>
+                {% endfor %}
+              </select>
+            </div>
 
-          <div class="control-group">
-            <label for="x-field">X Field:</label>
-            <select id="x-field">
-              <option value="x">x</option>
-              <option value="category">category</option>
-            </select>
-          </div>
+            <div class="control-group">
+              <label for="x_type">X Type:</label>
+              <select id="x_type" name="x_type">
+                {% for type_value, type_label in data_types.items() %}
+                <option value="{{ type_value }}" {% if type_value == selected_x_type %}selected{% endif %}>
+                  {{ type_label }}
+                </option>
+                {% endfor %}
+              </select>
+            </div>
 
-          <div class="control-group">
-            <label for="x-type">X Type:</label>
-            <select id="x-type">
-              <option value="quantitative">Quantitative</option>
-              <option value="nominal">Nominal</option>
-              <option value="ordinal">Ordinal</option>
-              <option value="temporal">Temporal</option>
-            </select>
-          </div>
+            <div class="control-group">
+              <label for="y_field">Y Field:</label>
+              <select id="y_field" name="y_field">
+                {% for field in available_fields %}
+                <option value="{{ field }}" {% if field == selected_y_field %}selected{% endif %}>
+                  {{ field }}
+                </option>
+                {% endfor %}
+              </select>
+            </div>
 
-          <div class="control-group">
-            <label for="y-field">Y Field:</label>
-            <select id="y-field">
-              <option value="y">y</option>
-            </select>
-          </div>
+            <div class="control-group">
+              <label for="y_type">Y Type:</label>
+              <select id="y_type" name="y_type">
+                {% for type_value, type_label in data_types.items() %}
+                <option value="{{ type_value }}" {% if type_value == selected_y_type %}selected{% endif %}>
+                  {{ type_label }}
+                </option>
+                {% endfor %}
+              </select>
+            </div>
 
-          <div class="control-group">
-            <label for="y-type">Y Type:</label>
-            <select id="y-type">
-              <option value="quantitative">Quantitative</option>
-              <option value="nominal">Nominal</option>
-              <option value="ordinal">Ordinal</option>
-              <option value="temporal">Temporal</option>
-            </select>
-          </div>
+            <div class="control-group">
+              <label for="color_field">Color Field:</label>
+              <select id="color_field" name="color_field">
+                <option value="" {% if selected_color_field == "" %}selected{% endif %}>None</option>
+                {% for field in available_fields %}
+                <option value="{{ field }}" {% if field == selected_color_field %}selected{% endif %}>
+                  {{ field }}
+                </option>
+                {% endfor %}
+              </select>
+            </div>
 
-          <div class="control-group">
-            <label for="color-field">Color Field:</label>
-            <select id="color-field">
-              <option value="">None</option>
-              <option value="category">category</option>
-            </select>
-          </div>
+            <div class="control-group">
+              <label for="color_type">Color Type:</label>
+              <select id="color_type" name="color_type">
+                {% for type_value, type_label in data_types.items() %}
+                <option value="{{ type_value }}" {% if type_value == selected_color_type %}selected{% endif %}>
+                  {{ type_label }}
+                </option>
+                {% endfor %}
+              </select>
+            </div>
 
-          <div class="control-group">
-            <label for="color-type">Color Type:</label>
-            <select id="color-type">
-              <option value="nominal">Nominal</option>
-              <option value="quantitative">Quantitative</option>
-              <option value="ordinal">Ordinal</option>
-              <option value="temporal">Temporal</option>
-            </select>
-          </div>
+            <div class="control-group">
+              <label for="title">Chart Title:</label>
+              <input type="text" id="title" name="title" placeholder="Enter chart title" value="{{ selected_title }}" />
+            </div>
 
-          <div class="control-group">
-            <label for="title">Chart Title:</label>
-            <input type="text" id="title" placeholder="Enter chart title" />
-          </div>
-
-          <button id="update-chart">Update Chart</button>
+            <button type="submit">Update Chart</button>
+          </form>
         </div>
       </div>
     </div>
 
     <script>
-      // Function to render a chart with a spec and data URL
-      async function renderChart(spec, dataUrl) {
-        // Set the data source in the spec
-        spec.data = { url: dataUrl };
-
-        // Display the spec
-        document.getElementById('spec-display').textContent = JSON.stringify(spec, null, 2);
-
-        // Render with Vega-Lite
-        return vegaEmbed('#vis', spec, { actions: true });
+      // Render the chart with Vega-Lite using the provided spec
+      function renderChart() {
+        const spec = JSON.parse(document.getElementById('chart-spec').textContent);
+        
+        // Set data URL in the spec
+        spec.data = { url: '/api/data.json' };
+        
+        // Render chart
+        vegaEmbed('#vis', spec, { actions: true });
       }
-
-      // Function to get a chart spec from the server
-      async function getChartSpec(params = {}) {
-        const queryString = new URLSearchParams(params).toString();
-        const response = await fetch(`/api/chart-spec?${queryString}`);
-        return response.json();
-      }
-
-      // Function to get and display sample data
-      async function fetchSampleData() {
-        const response = await fetch('/api/data.json');
-        const data = await response.json();
-        document.getElementById('sample-data').textContent = JSON.stringify(data, null, 2);
-
-        // Populate field selectors based on available data fields
-        if (data && data.length > 0) {
-          const fields = Object.keys(data[0]);
-          populateFieldSelectors(fields);
-        }
-
-        return data;
-      }
-
-      // Populate the field dropdowns with options from data
-      function populateFieldSelectors(fields) {
-        const selectors = ['x-field', 'y-field', 'color-field'];
-
-        selectors.forEach(selectorId => {
-          const select = document.getElementById(selectorId);
-          const currentValue = select.value;
-
-          // Clear existing options (except empty option for color)
-          select.innerHTML = '';
-
-          // Add empty option for color field
-          if (selectorId === 'color-field') {
-            const emptyOption = document.createElement('option');
-            emptyOption.value = '';
-            emptyOption.textContent = 'None';
-            select.appendChild(emptyOption);
-          }
-
-          // Add options for each field
-          fields.forEach(field => {
-            const option = document.createElement('option');
-            option.value = field;
-            option.textContent = field;
-
-            // Guess appropriate type based on field name
-            if (field === currentValue) {
-              option.selected = true;
-            }
-
-            select.appendChild(option);
-          });
-
-          // Set default field types based on field name
-          select.dispatchEvent(new Event('change'));
-        });
-      }
-
-      // Function to guess data type based on field name
-      function guessFieldType(fieldName, sampleData) {
-        if (!sampleData || !sampleData.length) return 'quantitative';
-
-        const sample = sampleData[0][fieldName];
-
-        if (fieldName.includes('date') || fieldName.includes('time')) {
-          return 'temporal';
-        } else if (typeof sample === 'number') {
-          return 'quantitative';
-        } else if (
-          fieldName.includes('category') ||
-          fieldName.includes('type') ||
-          fieldName.includes('group') ||
-          fieldName.includes('name')
-        ) {
-          return 'nominal';
-        } else if (typeof sample === 'string' && sample.length <= 10) {
-          return 'nominal';
-        }
-
-        return 'quantitative';
-      }
-
-      // Function to update chart based on current UI settings
-      async function updateChart() {
-        const chartType = document.getElementById('chart-type').value;
-        const xField = document.getElementById('x-field').value;
-        const xType = document.getElementById('x-type').value;
-        const yField = document.getElementById('y-field').value;
-        const yType = document.getElementById('y-type').value;
-        const colorField = document.getElementById('color-field').value;
-        const colorType = document.getElementById('color-type').value;
-        const title = document.getElementById('title').value;
-
-        const spec = await getChartSpec({
-          x: xField,
-          xType: xType,
-          y: yField,
-          yType: yType,
-          color: colorField || null,
-          colorType: colorType,
-          type: chartType,
-          title: title,
-        });
-
-        renderChart(spec, '/api/data.json');
-      }
-
-      // Tab functionality
+      
+      // Tab functionality for switching between views
       document.querySelectorAll('.tab').forEach(tab => {
         tab.addEventListener('click', () => {
           // Remove active class from all tabs
           document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
           document.querySelectorAll('.tab-content').forEach(t => t.classList.remove('active'));
-
+          
           // Add active class to clicked tab
           tab.classList.add('active');
           const tabContent = document.getElementById(`${tab.dataset.tab}-tab`);
           tabContent.classList.add('active');
         });
       });
-
-      // Update field type based on selected field
-      async function updateFieldType(fieldSelector, typeSelector) {
-        const field = document.getElementById(fieldSelector).value;
-        if (!field) return;
-
-        const data = await fetchSampleData();
-        const typeSelect = document.getElementById(typeSelector);
-        const suggestedType = guessFieldType(field, data);
-
-        typeSelect.value = suggestedType;
-      }
-
-      // Initial setup
-      window.addEventListener('DOMContentLoaded', async () => {
-        // Load sample data and populate fields
-        const sampleData = await fetchSampleData();
-
-        // Set up field change listeners to update the corresponding type selector
-        document.getElementById('x-field').addEventListener('change', async () => {
-          await updateFieldType('x-field', 'x-type');
-          updateChart();
-        });
-
-        document.getElementById('y-field').addEventListener('change', async () => {
-          await updateFieldType('y-field', 'y-type');
-          updateChart();
-        });
-
-        document.getElementById('color-field').addEventListener('change', async () => {
-          await updateFieldType('color-field', 'color-type');
-          updateChart();
-        });
-
-        // Initial chart render
-        await updateChart();
-
-        // Button still available for manual updates
-        document.getElementById('update-chart').addEventListener('click', updateChart);
-      });
+      
+      // Initial chart render
+      document.addEventListener('DOMContentLoaded', renderChart);
     </script>
   </body>
 </html>
-
