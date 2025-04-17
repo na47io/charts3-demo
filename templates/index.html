@@ -3,34 +3,65 @@
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>Altair Chart Demo</title>
+    <title>Altair Chart Builder</title>
     <script src="https://cdn.jsdelivr.net/npm/vega@5"></script>
     <script src="https://cdn.jsdelivr.net/npm/vega-lite@5"></script>
     <script src="https://cdn.jsdelivr.net/npm/vega-embed@6"></script>
     <style>
       body {
         font-family: Arial, sans-serif;
-        max-width: 800px;
+        max-width: 1200px;
         margin: 0 auto;
         padding: 20px;
+      }
+
+      .container {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 20px;
+      }
+
+      .chart-area {
+        flex: 1 1 650px;
+      }
+
+      .controls-area {
+        flex: 1 1 300px;
       }
 
       #vis {
         width: 100%;
         height: 400px;
         border: 1px solid #ddd;
-        margin: 20px 0;
-      }
-
-      .controls {
-        display: flex;
-        flex-wrap: wrap;
-        gap: 10px;
         margin-bottom: 20px;
       }
 
+      #spec-display {
+        width: 100%;
+        height: 200px;
+        font-family: monospace;
+        border: 1px solid #ddd;
+        padding: 10px;
+        box-sizing: border-box;
+        overflow: auto;
+        margin-top: 10px;
+      }
+
+      .controls {
+        background-color: #f8f9fa;
+        padding: 15px;
+        border-radius: 5px;
+        border: 1px solid #ddd;
+      }
+
       .control-group {
-        margin-right: 20px;
+        margin-bottom: 15px;
+      }
+
+      .control-group label {
+        display: block;
+        margin-bottom: 5px;
+        font-weight: bold;
       }
 
       button {
@@ -40,6 +71,7 @@
         color: white;
         cursor: pointer;
         border-radius: 4px;
+        margin-top: 10px;
       }
 
       button:hover {
@@ -48,62 +80,163 @@
 
       select,
       input {
-        padding: 6px;
+        width: 100%;
+        padding: 8px;
         border: 1px solid #ccc;
         border-radius: 4px;
+        box-sizing: border-box;
+      }
+
+      .tabs {
+        display: flex;
+        margin-bottom: 10px;
+      }
+
+      .tab {
+        padding: 8px 16px;
+        background-color: #f1f1f1;
+        border: 1px solid #ccc;
+        cursor: pointer;
+      }
+
+      .tab.active {
+        background-color: #4caf50;
+        color: white;
+        border-color: #4caf50;
+      }
+
+      .tab-content {
+        display: none;
+      }
+
+      .tab-content.active {
+        display: block;
+      }
+
+      .sample-data {
+        margin-top: 10px;
+        font-size: 0.9em;
+        background-color: #f8f8f8;
+        padding: 10px;
+        border-radius: 4px;
+        border: 1px solid #ddd;
+        overflow: auto;
+        max-height: 200px;
       }
     </style>
   </head>
   <body>
-    <h1>Altair Chart Demo</h1>
-    <p>
-      This demo shows how to use Altair on the server to generate chart specs, and Vega-Lite on the
-      client to render them with external data.
-    </p>
+    <h1>Altair Chart Builder</h1>
+    <p>Build and customize charts with Altair specs on the server and apply them to your data.</p>
 
-    <div class="controls">
-      <div class="control-group">
-        <label for="chart-type">Chart Type:</label>
-        <select id="chart-type">
-          <option value="line">Line</option>
-          <option value="bar">Bar</option>
-          <option value="point">Scatter</option>
-        </select>
+    <div class="container">
+      <div class="chart-area">
+        <div id="vis"></div>
+        <div class="tabs">
+          <div class="tab active" data-tab="preview">Chart Preview</div>
+          <div class="tab" data-tab="spec">Chart Spec</div>
+          <div class="tab" data-tab="data">Sample Data</div>
+        </div>
+        <div class="tab-content active" id="preview-tab">
+          <!-- Chart is displayed in #vis above -->
+        </div>
+        <div class="tab-content" id="spec-tab">
+          <pre id="spec-display"></pre>
+        </div>
+        <div class="tab-content" id="data-tab">
+          <div class="sample-data">
+            <pre id="sample-data"></pre>
+          </div>
+        </div>
       </div>
 
-      <div class="control-group">
-        <label for="x-field">X Field:</label>
-        <select id="x-field">
-          <option value="x">x</option>
-          <option value="category">category</option>
-        </select>
-      </div>
+      <div class="controls-area">
+        <div class="controls">
+          <h3>Chart Configuration</h3>
 
-      <div class="control-group">
-        <label for="y-field">Y Field:</label>
-        <select id="y-field">
-          <option value="y">y</option>
-        </select>
-      </div>
+          <div class="control-group">
+            <label for="chart-type">Chart Type:</label>
+            <select id="chart-type">
+              <option value="line">Line</option>
+              <option value="bar">Bar</option>
+              <option value="point">Scatter</option>
+              <option value="area">Area</option>
+              <option value="boxplot">Boxplot</option>
+              <option value="heatmap">Heatmap</option>
+            </select>
+          </div>
 
-      <div class="control-group">
-        <label for="color-field">Color Field:</label>
-        <select id="color-field">
-          <option value="">None</option>
-          <option value="category">category</option>
-        </select>
-      </div>
+          <div class="control-group">
+            <label for="x-field">X Field:</label>
+            <select id="x-field">
+              <option value="x">x</option>
+              <option value="category">category</option>
+            </select>
+          </div>
 
-      <button id="update-chart">Update Chart</button>
+          <div class="control-group">
+            <label for="x-type">X Type:</label>
+            <select id="x-type">
+              <option value="quantitative">Quantitative</option>
+              <option value="nominal">Nominal</option>
+              <option value="ordinal">Ordinal</option>
+              <option value="temporal">Temporal</option>
+            </select>
+          </div>
+
+          <div class="control-group">
+            <label for="y-field">Y Field:</label>
+            <select id="y-field">
+              <option value="y">y</option>
+            </select>
+          </div>
+
+          <div class="control-group">
+            <label for="y-type">Y Type:</label>
+            <select id="y-type">
+              <option value="quantitative">Quantitative</option>
+              <option value="nominal">Nominal</option>
+              <option value="ordinal">Ordinal</option>
+              <option value="temporal">Temporal</option>
+            </select>
+          </div>
+
+          <div class="control-group">
+            <label for="color-field">Color Field:</label>
+            <select id="color-field">
+              <option value="">None</option>
+              <option value="category">category</option>
+            </select>
+          </div>
+
+          <div class="control-group">
+            <label for="color-type">Color Type:</label>
+            <select id="color-type">
+              <option value="nominal">Nominal</option>
+              <option value="quantitative">Quantitative</option>
+              <option value="ordinal">Ordinal</option>
+              <option value="temporal">Temporal</option>
+            </select>
+          </div>
+
+          <div class="control-group">
+            <label for="title">Chart Title:</label>
+            <input type="text" id="title" placeholder="Enter chart title" />
+          </div>
+
+          <button id="update-chart">Update Chart</button>
+        </div>
+      </div>
     </div>
-
-    <div id="vis"></div>
 
     <script>
       // Function to render a chart with a spec and data URL
       async function renderChart(spec, dataUrl) {
         // Set the data source in the spec
         spec.data = { url: dataUrl };
+
+        // Display the spec
+        document.getElementById('spec-display').textContent = JSON.stringify(spec, null, 2);
 
         // Render with Vega-Lite
         return vegaEmbed('#vis', spec, { actions: true });
@@ -116,34 +249,162 @@
         return response.json();
       }
 
-      // Initial render
-      window.addEventListener('DOMContentLoaded', async () => {
-        const initialSpec = await getChartSpec({
-          x: 'x',
-          y: 'y',
-          color: 'category',
-          type: 'line',
+      // Function to get and display sample data
+      async function fetchSampleData() {
+        const response = await fetch('/api/data.json');
+        const data = await response.json();
+        document.getElementById('sample-data').textContent = JSON.stringify(data, null, 2);
+
+        // Populate field selectors based on available data fields
+        if (data && data.length > 0) {
+          const fields = Object.keys(data[0]);
+          populateFieldSelectors(fields);
+        }
+
+        return data;
+      }
+
+      // Populate the field dropdowns with options from data
+      function populateFieldSelectors(fields) {
+        const selectors = ['x-field', 'y-field', 'color-field'];
+
+        selectors.forEach(selectorId => {
+          const select = document.getElementById(selectorId);
+          const currentValue = select.value;
+
+          // Clear existing options (except empty option for color)
+          select.innerHTML = '';
+
+          // Add empty option for color field
+          if (selectorId === 'color-field') {
+            const emptyOption = document.createElement('option');
+            emptyOption.value = '';
+            emptyOption.textContent = 'None';
+            select.appendChild(emptyOption);
+          }
+
+          // Add options for each field
+          fields.forEach(field => {
+            const option = document.createElement('option');
+            option.value = field;
+            option.textContent = field;
+
+            // Guess appropriate type based on field name
+            if (field === currentValue) {
+              option.selected = true;
+            }
+
+            select.appendChild(option);
+          });
+
+          // Set default field types based on field name
+          select.dispatchEvent(new Event('change'));
         });
+      }
 
-        renderChart(initialSpec, '/api/data.json');
-      });
+      // Function to guess data type based on field name
+      function guessFieldType(fieldName, sampleData) {
+        if (!sampleData || !sampleData.length) return 'quantitative';
 
-      // Update chart when button is clicked
-      document.getElementById('update-chart').addEventListener('click', async () => {
+        const sample = sampleData[0][fieldName];
+
+        if (fieldName.includes('date') || fieldName.includes('time')) {
+          return 'temporal';
+        } else if (typeof sample === 'number') {
+          return 'quantitative';
+        } else if (
+          fieldName.includes('category') ||
+          fieldName.includes('type') ||
+          fieldName.includes('group') ||
+          fieldName.includes('name')
+        ) {
+          return 'nominal';
+        } else if (typeof sample === 'string' && sample.length <= 10) {
+          return 'nominal';
+        }
+
+        return 'quantitative';
+      }
+
+      // Function to update chart based on current UI settings
+      async function updateChart() {
         const chartType = document.getElementById('chart-type').value;
         const xField = document.getElementById('x-field').value;
+        const xType = document.getElementById('x-type').value;
         const yField = document.getElementById('y-field').value;
+        const yType = document.getElementById('y-type').value;
         const colorField = document.getElementById('color-field').value;
+        const colorType = document.getElementById('color-type').value;
+        const title = document.getElementById('title').value;
 
         const spec = await getChartSpec({
           x: xField,
+          xType: xType,
           y: yField,
+          yType: yType,
           color: colorField || null,
+          colorType: colorType,
           type: chartType,
+          title: title,
         });
 
         renderChart(spec, '/api/data.json');
+      }
+
+      // Tab functionality
+      document.querySelectorAll('.tab').forEach(tab => {
+        tab.addEventListener('click', () => {
+          // Remove active class from all tabs
+          document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
+          document.querySelectorAll('.tab-content').forEach(t => t.classList.remove('active'));
+
+          // Add active class to clicked tab
+          tab.classList.add('active');
+          const tabContent = document.getElementById(`${tab.dataset.tab}-tab`);
+          tabContent.classList.add('active');
+        });
+      });
+
+      // Update field type based on selected field
+      async function updateFieldType(fieldSelector, typeSelector) {
+        const field = document.getElementById(fieldSelector).value;
+        if (!field) return;
+
+        const data = await fetchSampleData();
+        const typeSelect = document.getElementById(typeSelector);
+        const suggestedType = guessFieldType(field, data);
+
+        typeSelect.value = suggestedType;
+      }
+
+      // Initial setup
+      window.addEventListener('DOMContentLoaded', async () => {
+        // Load sample data and populate fields
+        const sampleData = await fetchSampleData();
+
+        // Set up field change listeners to update the corresponding type selector
+        document.getElementById('x-field').addEventListener('change', async () => {
+          await updateFieldType('x-field', 'x-type');
+          updateChart();
+        });
+
+        document.getElementById('y-field').addEventListener('change', async () => {
+          await updateFieldType('y-field', 'y-type');
+          updateChart();
+        });
+
+        document.getElementById('color-field').addEventListener('change', async () => {
+          await updateFieldType('color-field', 'color-type');
+          updateChart();
+        });
+
+        // Initial chart render
+        await updateChart();
+
+        // Button still available for manual updates
+        document.getElementById('update-chart').addEventListener('click', updateChart);
       });
     </script>
   </body>
 </html>
+
