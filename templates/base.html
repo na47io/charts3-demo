@@ -1,0 +1,232 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Altair Chart Builder</title>
+    <script src="https://cdn.jsdelivr.net/npm/vega@5"></script>
+    <script src="https://cdn.jsdelivr.net/npm/vega-lite@5"></script>
+    <script src="https://cdn.jsdelivr.net/npm/vega-embed@6"></script>
+    <style>
+      body {
+        font-family: Arial, sans-serif;
+        max-width: 1200px;
+        margin: 0 auto;
+        padding: 20px;
+      }
+
+      .container {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 20px;
+      }
+
+      .chart-area {
+        flex: 1 1 650px;
+      }
+
+      .controls-area {
+        flex: 1 1 300px;
+      }
+
+      #vis {
+        width: 100%;
+        height: 400px;
+        border: 1px solid #ddd;
+        margin-bottom: 20px;
+      }
+
+      #chart-spec {
+        width: 100%;
+        height: 200px;
+        font-family: monospace;
+        border: 1px solid #ddd;
+        padding: 10px;
+        box-sizing: border-box;
+        overflow: auto;
+        margin-top: 10px;
+      }
+
+      .controls {
+        background-color: #f8f9fa;
+        padding: 15px;
+        border-radius: 5px;
+        border: 1px solid #ddd;
+      }
+
+      .control-group {
+        margin-bottom: 15px;
+      }
+
+      .control-group label {
+        display: block;
+        margin-bottom: 5px;
+        font-weight: bold;
+      }
+
+      button {
+        padding: 8px 16px;
+        background-color: #4caf50;
+        border: none;
+        color: white;
+        cursor: pointer;
+        border-radius: 4px;
+        margin-top: 10px;
+      }
+
+      button:hover {
+        background-color: #45a049;
+      }
+
+      select,
+      input {
+        width: 100%;
+        padding: 8px;
+        border: 1px solid #ccc;
+        border-radius: 4px;
+        box-sizing: border-box;
+      }
+
+      .tabs {
+        display: flex;
+        margin-bottom: 10px;
+      }
+
+      .tab {
+        padding: 8px 16px;
+        background-color: #f1f1f1;
+        border: 1px solid #ccc;
+        cursor: pointer;
+      }
+
+      .tab.active {
+        background-color: #4caf50;
+        color: white;
+        border-color: #4caf50;
+      }
+
+      .tab-content {
+        display: none;
+      }
+
+      .tab-content.active {
+        display: block;
+      }
+
+      .sample-data {
+        margin-top: 10px;
+        font-size: 0.9em;
+        background-color: #f8f8f8;
+        padding: 10px;
+        border-radius: 4px;
+        border: 1px solid #ddd;
+        overflow: auto;
+        max-height: 200px;
+      }
+      
+      .chart-select {
+        margin-bottom: 15px;
+      }
+    </style>
+  </head>
+  <body>
+    <h1>Altair Chart Builder</h1>
+    <p>Build and customize charts with Altair specs and apply them to your data.</p>
+
+    <div class="chart-select">
+      <form id="chart-type-form" method="GET">
+        <label for="chart-type-select">Chart Type:</label>
+        <select id="chart-type-select" onchange="changeChartType(this.value)">
+          {% for type_value, type_label in chart_types.items() %}
+          <option value="{{ type_value }}" {% if type_value == selected_chart_type %}selected{% endif %}>
+            {{ type_label }}
+          </option>
+          {% endfor %}
+        </select>
+      </form>
+    </div>
+
+    <div class="container">
+      <div class="chart-area">
+        <div id="vis"></div>
+        <div class="tabs">
+          <div class="tab active" data-tab="preview">Chart Preview</div>
+          <div class="tab" data-tab="spec">Chart Spec</div>
+          <div class="tab" data-tab="data">Sample Data</div>
+        </div>
+        <div class="tab-content active" id="preview-tab">
+          <!-- Chart is displayed in #vis above -->
+        </div>
+        <div class="tab-content" id="spec-tab">
+          <pre id="chart-spec">{{ chart_json }}</pre>
+        </div>
+        <div class="tab-content" id="data-tab">
+          <div class="sample-data">
+            <pre id="sample-data">Loading data...</pre>
+          </div>
+        </div>
+      </div>
+
+      <div class="controls-area">
+        <div class="controls">
+          <h3>Chart Configuration</h3>
+          {% block chart_form %}{% endblock %}
+        </div>
+      </div>
+    </div>
+
+    <script>
+      // Function to change chart type
+      function changeChartType(chartType) {
+        window.location.href = `/chart/${chartType}`;
+      }
+      
+      // Function to fetch data from API
+      async function fetchData() {
+        try {
+          const response = await fetch('/api/data.json');
+          const data = await response.json();
+          document.getElementById('sample-data').textContent = JSON.stringify(data, null, 2);
+          return data;
+        } catch (error) {
+          console.error('Error fetching data:', error);
+          document.getElementById('sample-data').textContent = 'Error loading data';
+          return null;
+        }
+      }
+      
+      // Render the chart with Vega-Lite using the provided spec
+      async function renderChart() {
+        const spec = JSON.parse(document.getElementById('chart-spec').textContent);
+        
+        // Set data URL in the spec
+        spec.data = { url: '/api/data.json' };
+        
+        // Render chart
+        vegaEmbed('#vis', spec, { actions: true });
+      }
+      
+      // Tab functionality for switching between views
+      document.querySelectorAll('.tab').forEach(tab => {
+        tab.addEventListener('click', () => {
+          // Remove active class from all tabs
+          document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
+          document.querySelectorAll('.tab-content').forEach(t => t.classList.remove('active'));
+          
+          // Add active class to clicked tab
+          tab.classList.add('active');
+          const tabContent = document.getElementById(`${tab.dataset.tab}-tab`);
+          tabContent.classList.add('active');
+        });
+      });
+      
+      // Initial chart render and setup
+      document.addEventListener('DOMContentLoaded', () => {
+        renderChart();
+        fetchData();
+      });
+    </script>
+    
+    {% block extra_scripts %}{% endblock %}
+  </body>
+</html>

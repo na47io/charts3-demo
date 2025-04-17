@@ -1,4 +1,4 @@
-from flask import Flask, request, render_template, jsonify
+from flask import Flask, request, render_template, jsonify, redirect, url_for
 import altair as alt
 from flask_cors import CORS
 import pandas as pd
@@ -28,27 +28,26 @@ DATA_TYPES = {
     "temporal": "Time"
 }
 
+# Aggregation functions available for aggregate charts
+AGGREGATE_FUNCTIONS = {
+    "count": "Count",
+    "sum": "Sum",
+    "mean": "Average",
+    "median": "Median",
+    "min": "Minimum", 
+    "max": "Maximum"
+}
+
 def generate_sample_dataframe():
     """Generate a simple dataframe with two columns for visualization."""
     # Create a simple dataframe with x and y values
     return pd.DataFrame({
-        "x": np.arange(1, 10001),
-        "y": np.random.normal(50, 15, 10000)
+        "x": np.arange(1, 101),
+        "y": np.random.normal(50, 15, 100)
     })
 
-def create_chart(chart_type, x_field, x_type, y_field, y_type, color_field=None, color_type="nominal", 
-                title="", bin_parameters=None, aggregate_function="count"):
-    """Create an Altair chart based on parameters.
-    
-    Supports both regular charts and aggregate charts like histograms and pie charts.
-    """
-    # Handle aggregate charts (pie, histogram)
-    if chart_type in ["pie", "histogram"]:
-        return create_aggregate_chart(
-            chart_type, x_field, x_type, y_field, y_type, 
-            color_field, color_type, title, bin_parameters, aggregate_function
-        )
-    
+def create_standard_chart(chart_type, x_field, x_type, y_field, y_type, color_field=None, color_type="nominal", title=""):
+    """Create a standard (non-aggregate) chart based on parameters."""
     # Create base chart based on chart type (non-aggregate)
     if chart_type == "bar":
         chart = alt.Chart().mark_bar()
@@ -106,58 +105,20 @@ def create_chart(chart_type, x_field, x_type, y_field, y_type, color_field=None,
     return chart
 
 
-def create_aggregate_chart(chart_type, x_field, x_type, y_field, y_type, color_field=None, color_type="nominal",
-                         title="", bin_parameters=None, aggregate_function="count"):
-    """Create aggregate charts like pie charts and histograms."""
+def create_pie_chart(slice_field, slice_type, value_field=None, value_type="quantitative", 
+                   aggregate_function="count", title=""):
+    """Create a pie chart."""
+    # For pie charts, we need a theta field (angle) for the slice size
+    theta_field = value_field if value_field else slice_field
     
-    if chart_type == "histogram":
-        # For histograms, we need to bin the x field
-        binned_x = {"field": x_field, "type": x_type, "bin": True}
-        if bin_parameters:
-            # If bin parameters are provided, use them
-            binned_x["bin"] = bin_parameters
-            
-        chart = alt.Chart().mark_bar().encode(
-            x=binned_x,
-            y=alt.Y(aggregate=aggregate_function, title=f"{aggregate_function.title()} of Records"),
-            tooltip=[
-                {"field": x_field, "type": x_type, "bin": True},
-                {"aggregate": aggregate_function, "title": f"{aggregate_function.title()} of Records"}
-            ]
-        )
-        
-        if color_field:
-            chart = chart.encode(color={"field": color_field, "type": color_type})
-            
-    elif chart_type == "pie":
-        # For pie charts, we need a theta field (angle) for the slice size
-        # and a color field for the slice identity
-        # If no color field is provided, use the x field
-        theta_field = y_field if y_field else x_field
-        slice_field = color_field if color_field else x_field
-        slice_type = color_type if color_field else x_type
-        
-        chart = alt.Chart().mark_arc().encode(
-            theta=alt.Theta(field=theta_field, type=y_type, aggregate=aggregate_function),
-            color=alt.Color(field=slice_field, type=slice_type),
-            tooltip=[
-                {"field": slice_field, "type": slice_type},
-                {"field": theta_field, "type": y_type, "aggregate": aggregate_function}
-            ]
-        )
-    else:
-        # Default to a count aggregation bar chart if an unknown aggregate type is specified
-        chart = alt.Chart().mark_bar().encode(
-            x={"field": x_field, "type": x_type},
-            y=alt.Y(aggregate=aggregate_function, title=f"{aggregate_function.title()} of Records"),
-            tooltip=[
-                {"field": x_field, "type": x_type},
-                {"aggregate": aggregate_function, "title": f"{aggregate_function.title()} of Records"}
-            ]
-        )
-        
-        if color_field:
-            chart = chart.encode(color={"field": color_field, "type": color_type})
+    chart = alt.Chart().mark_arc().encode(
+        theta=alt.Theta(field=theta_field, type=value_type, aggregate=aggregate_function),
+        color=alt.Color(field=slice_field, type=slice_type),
+        tooltip=[
+            {"field": slice_field, "type": slice_type},
+            {"field": theta_field, "type": value_type, "aggregate": aggregate_function}
+        ]
+    )
     
     # Add title if provided
     if title:
@@ -174,24 +135,70 @@ def create_aggregate_chart(chart_type, x_field, x_type, y_field, y_type, color_f
     return chart
 
 
-@app.route("/", methods=["GET", "POST"])
+def create_histogram(x_field, x_type, color_field=None, color_type="nominal",
+                   aggregate_function="count", bin_step=10, title=""):
+    """Create a histogram."""
+    # For histograms, we need to bin the x field
+    bin_parameters = {"step": bin_step} if bin_step > 0 else {"maxbins": 20}
+    
+    binned_x = {"field": x_field, "type": x_type, "bin": bin_parameters}
+        
+    chart = alt.Chart().mark_bar().encode(
+        x=binned_x,
+        y=alt.Y(aggregate=aggregate_function, title=f"{aggregate_function.title()} of Records"),
+        tooltip=[
+            {"field": x_field, "type": x_type, "bin": True},
+            {"aggregate": aggregate_function, "title": f"{aggregate_function.title()} of Records"}
+        ]
+    )
+    
+    if color_field:
+        chart = chart.encode(color={"field": color_field, "type": color_type})
+    
+    # Add title if provided
+    if title:
+        chart = chart.properties(title=title)
+        
+    # Add config for better appearance
+    chart = chart.configure_view(
+        strokeWidth=0,
+    ).properties(
+        width="container",
+        height=300
+    )
+    
+    return chart
+
+
+@app.route("/")
 def index():
-    # Get the dataframe
+    """Main entry point - redirects to default chart type."""
+    return redirect(url_for('get_chart_page', chart_type='line'))
+
+
+@app.route("/chart/<chart_type>", methods=["GET", "POST"])
+def get_chart_page(chart_type):
+    """Route handler for all chart types."""
+    # Validate chart type
+    if chart_type not in CHART_TYPES:
+        return redirect(url_for('get_chart_page', chart_type='line'))
+        
+    # Get the dataframe for field options
     df = generate_sample_dataframe()
     available_fields = list(df.columns)
     
-    # Aggregation functions available for aggregate charts
-    aggregate_functions = {
-        "count": "Count",
-        "sum": "Sum",
-        "mean": "Average",
-        "median": "Median",
-        "min": "Minimum", 
-        "max": "Maximum"
-    }
-    
-    # Default chart parameters
-    chart_type = "line"
+    # Route to appropriate chart handler
+    if chart_type == "pie":
+        return handle_pie_chart_request(available_fields, request)
+    elif chart_type == "histogram":
+        return handle_histogram_request(available_fields, request)
+    else:
+        return handle_standard_chart_request(chart_type, available_fields, request)
+
+
+def handle_standard_chart_request(chart_type, available_fields, request):
+    """Handle standard (non-aggregate) chart requests."""
+    # Default chart parameters for standard charts
     x_field = "x"
     x_type = "quantitative"
     y_field = "y" 
@@ -199,12 +206,9 @@ def index():
     color_field = ""
     color_type = "nominal"
     title = ""
-    aggregate_function = "count"
-    bin_step = 10  # Default bin size for histograms
     
     # If form was submitted, get the chart parameters
     if request.method == "POST":
-        chart_type = request.form.get("chart_type", chart_type)
         x_field = request.form.get("x_field", x_field)
         x_type = request.form.get("x_type", x_type)
         y_field = request.form.get("y_field", y_field) 
@@ -212,22 +216,9 @@ def index():
         color_field = request.form.get("color_field", color_field)
         color_type = request.form.get("color_type", color_type)
         title = request.form.get("title", title)
-        
-        # Get aggregation parameters if provided
-        aggregate_function = request.form.get("aggregate_function", aggregate_function)
-        bin_step_str = request.form.get("bin_step", str(bin_step))
-        try:
-            bin_step = float(bin_step_str)
-        except ValueError:
-            bin_step = 10  # Default if invalid input
     
-    # Set up bin parameters for histogram
-    bin_parameters = {"maxbins": 20}  # Default binning
-    if chart_type == "histogram" and bin_step > 0:
-        bin_parameters = {"step": bin_step}
-        
     # Create the chart
-    chart = create_chart(
+    chart = create_standard_chart(
         chart_type=chart_type, 
         x_field=x_field, 
         x_type=x_type, 
@@ -235,20 +226,18 @@ def index():
         y_type=y_type, 
         color_field=color_field if color_field else None, 
         color_type=color_type,
-        title=title,
-        bin_parameters=bin_parameters,
-        aggregate_function=aggregate_function
+        title=title
     )
     
-    # Generate chart spec and HTML for embedding
+    # Generate chart spec
     chart_spec = chart.to_dict()
     chart_json = json.dumps(chart_spec)
     
+    # Render the template with only the form fields needed for standard charts
     return render_template(
-        "index.html",
+        "standard_chart.html",
         chart_types=CHART_TYPES,
         data_types=DATA_TYPES,
-        aggregate_functions=aggregate_functions,
         available_fields=available_fields,
         chart_json=chart_json,
         selected_chart_type=chart_type,
@@ -258,10 +247,117 @@ def index():
         selected_y_type=y_type,
         selected_color_field=color_field,
         selected_color_type=color_type,
-        selected_title=title,
+        selected_title=title
+    )
+
+
+def handle_pie_chart_request(available_fields, request):
+    """Handle pie chart requests."""
+    # Default chart parameters for pie charts
+    slice_field = "x"
+    slice_type = "nominal"
+    value_field = "y"
+    value_type = "quantitative"
+    aggregate_function = "count"
+    title = ""
+    
+    # If form was submitted, get the chart parameters
+    if request.method == "POST":
+        slice_field = request.form.get("slice_field", slice_field)
+        slice_type = request.form.get("slice_type", slice_type)
+        value_field = request.form.get("value_field", value_field)
+        value_type = request.form.get("value_type", value_type)
+        aggregate_function = request.form.get("aggregate_function", aggregate_function)
+        title = request.form.get("title", title)
+    
+    # Create the chart
+    chart = create_pie_chart(
+        slice_field=slice_field,
+        slice_type=slice_type,
+        value_field=value_field,
+        value_type=value_type,
+        aggregate_function=aggregate_function,
+        title=title
+    )
+    
+    # Generate chart spec
+    chart_spec = chart.to_dict()
+    chart_json = json.dumps(chart_spec)
+    
+    # Render the template with only the form fields needed for pie charts
+    return render_template(
+        "pie_chart.html",
+        chart_types=CHART_TYPES,
+        data_types=DATA_TYPES,
+        aggregate_functions=AGGREGATE_FUNCTIONS,
+        available_fields=available_fields,
+        chart_json=chart_json,
+        selected_chart_type="pie",
+        selected_slice_field=slice_field,
+        selected_slice_type=slice_type,
+        selected_value_field=value_field,
+        selected_value_type=value_type,
+        selected_aggregate_function=aggregate_function,
+        selected_title=title
+    )
+
+
+def handle_histogram_request(available_fields, request):
+    """Handle histogram requests."""
+    # Default chart parameters for histograms
+    x_field = "x"
+    x_type = "quantitative"
+    color_field = ""
+    color_type = "nominal"
+    aggregate_function = "count"
+    bin_step = 10
+    title = ""
+    
+    # If form was submitted, get the chart parameters
+    if request.method == "POST":
+        x_field = request.form.get("x_field", x_field)
+        x_type = request.form.get("x_type", x_type)
+        color_field = request.form.get("color_field", color_field)
+        color_type = request.form.get("color_type", color_type)
+        aggregate_function = request.form.get("aggregate_function", aggregate_function)
+        bin_step_str = request.form.get("bin_step", str(bin_step))
+        try:
+            bin_step = float(bin_step_str)
+        except ValueError:
+            bin_step = 10  # Default if invalid input
+        title = request.form.get("title", title)
+    
+    # Create the chart
+    chart = create_histogram(
+        x_field=x_field,
+        x_type=x_type,
+        color_field=color_field if color_field else None,
+        color_type=color_type,
+        aggregate_function=aggregate_function,
+        bin_step=bin_step,
+        title=title
+    )
+    
+    # Generate chart spec
+    chart_spec = chart.to_dict()
+    chart_json = json.dumps(chart_spec)
+    
+    # Render the template with only the form fields needed for histograms
+    return render_template(
+        "histogram.html",
+        chart_types=CHART_TYPES,
+        data_types=DATA_TYPES,
+        aggregate_functions=AGGREGATE_FUNCTIONS,
+        available_fields=available_fields,
+        chart_json=chart_json,
+        selected_chart_type="histogram",
+        selected_x_field=x_field,
+        selected_x_type=x_type,
+        selected_color_field=color_field,
+        selected_color_type=color_type,
         selected_aggregate_function=aggregate_function,
         selected_bin_step=bin_step,
-        is_aggregate_chart=chart_type in ["pie", "histogram"]
+        selected_title=title
     )
 
 

@@ -1,0 +1,74 @@
+{% extends "base.html" %}
+
+{% block chart_form %}
+<form method="POST" action="/chart/histogram">
+  <div class="control-group">
+    <label for="x_field">Data Field:</label>
+    <select id="x_field" name="x_field">
+      {% for field in available_fields %}
+      <option value="{{ field }}" {% if field == selected_x_field %}selected{% endif %}>
+        {{ field }}
+      </option>
+      {% endfor %}
+    </select>
+  </div>
+
+  <div class="control-group">
+    <label for="x_type">Data Type:</label>
+    <select id="x_type" name="x_type">
+      {% for type_value, type_label in data_types.items() %}
+      <option value="{{ type_value }}" {% if type_value == selected_x_type %}selected{% endif %}>
+        {{ type_label }}
+      </option>
+      {% endfor %}
+    </select>
+  </div>
+
+  <div class="control-group">
+    <label for="bin_step">Bin Size:</label>
+    <input type="number" id="bin_step" name="bin_step" min="1" step="1" 
+           value="{{ selected_bin_step }}" placeholder="Bin size" />
+  </div>
+
+  <div class="control-group">
+    <label for="aggregate_function">Aggregation Function:</label>
+    <select id="aggregate_function" name="aggregate_function">
+      {% for func_value, func_label in aggregate_functions.items() %}
+      <option value="{{ func_value }}" {% if func_value == selected_aggregate_function %}selected{% endif %}>
+        {{ func_label }}
+      </option>
+      {% endfor %}
+    </select>
+  </div>
+
+  <div class="control-group">
+    <label for="color_field">Color Field:</label>
+    <select id="color_field" name="color_field">
+      <option value="" {% if selected_color_field == "" %}selected{% endif %}>None</option>
+      {% for field in available_fields %}
+      <option value="{{ field }}" {% if field == selected_color_field %}selected{% endif %}>
+        {{ field }}
+      </option>
+      {% endfor %}
+    </select>
+  </div>
+
+  <div class="control-group">
+    <label for="color_type">Color Type:</label>
+    <select id="color_type" name="color_type">
+      {% for type_value, type_label in data_types.items() %}
+      <option value="{{ type_value }}" {% if type_value == selected_color_type %}selected{% endif %}>
+        {{ type_label }}
+      </option>
+      {% endfor %}
+    </select>
+  </div>
+
+  <div class="control-group">
+    <label for="title">Chart Title:</label>
+    <input type="text" id="title" name="title" placeholder="Enter chart title" value="{{ selected_title }}" />
+  </div>
+
+  <button type="submit">Update Chart</button>
+</form>
+{% endblock %}

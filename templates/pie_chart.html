@@ -1,0 +1,67 @@
+{% extends "base.html" %}
+
+{% block chart_form %}
+<form method="POST" action="/chart/pie">
+  <div class="control-group">
+    <label for="slice_field">Slice Field (Categories):</label>
+    <select id="slice_field" name="slice_field">
+      {% for field in available_fields %}
+      <option value="{{ field }}" {% if field == selected_slice_field %}selected{% endif %}>
+        {{ field }}
+      </option>
+      {% endfor %}
+    </select>
+  </div>
+
+  <div class="control-group">
+    <label for="slice_type">Slice Type:</label>
+    <select id="slice_type" name="slice_type">
+      {% for type_value, type_label in data_types.items() %}
+      <option value="{{ type_value }}" {% if type_value == selected_slice_type %}selected{% endif %}>
+        {{ type_label }}
+      </option>
+      {% endfor %}
+    </select>
+  </div>
+
+  <div class="control-group">
+    <label for="value_field">Value Field (Slice Size):</label>
+    <select id="value_field" name="value_field">
+      {% for field in available_fields %}
+      <option value="{{ field }}" {% if field == selected_value_field %}selected{% endif %}>
+        {{ field }}
+      </option>
+      {% endfor %}
+    </select>
+  </div>
+
+  <div class="control-group">
+    <label for="value_type">Value Type:</label>
+    <select id="value_type" name="value_type">
+      {% for type_value, type_label in data_types.items() %}
+      <option value="{{ type_value }}" {% if type_value == selected_value_type %}selected{% endif %}>
+        {{ type_label }}
+      </option>
+      {% endfor %}
+    </select>
+  </div>
+
+  <div class="control-group">
+    <label for="aggregate_function">Aggregation Function:</label>
+    <select id="aggregate_function" name="aggregate_function">
+      {% for func_value, func_label in aggregate_functions.items() %}
+      <option value="{{ func_value }}" {% if func_value == selected_aggregate_function %}selected{% endif %}>
+        {{ func_label }}
+      </option>
+      {% endfor %}
+    </select>
+  </div>
+
+  <div class="control-group">
+    <label for="title">Chart Title:</label>
+    <input type="text" id="title" name="title" placeholder="Enter chart title" value="{{ selected_title }}" />
+  </div>
+
+  <button type="submit">Update Chart</button>
+</form>
+{% endblock %}
