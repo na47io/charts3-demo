@@ -1,0 +1,149 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Altair Chart Demo</title>
+    <script src="https://cdn.jsdelivr.net/npm/vega@5"></script>
+    <script src="https://cdn.jsdelivr.net/npm/vega-lite@5"></script>
+    <script src="https://cdn.jsdelivr.net/npm/vega-embed@6"></script>
+    <style>
+      body {
+        font-family: Arial, sans-serif;
+        max-width: 800px;
+        margin: 0 auto;
+        padding: 20px;
+      }
+
+      #vis {
+        width: 100%;
+        height: 400px;
+        border: 1px solid #ddd;
+        margin: 20px 0;
+      }
+
+      .controls {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 10px;
+        margin-bottom: 20px;
+      }
+
+      .control-group {
+        margin-right: 20px;
+      }
+
+      button {
+        padding: 8px 16px;
+        background-color: #4caf50;
+        border: none;
+        color: white;
+        cursor: pointer;
+        border-radius: 4px;
+      }
+
+      button:hover {
+        background-color: #45a049;
+      }
+
+      select,
+      input {
+        padding: 6px;
+        border: 1px solid #ccc;
+        border-radius: 4px;
+      }
+    </style>
+  </head>
+  <body>
+    <h1>Altair Chart Demo</h1>
+    <p>
+      This demo shows how to use Altair on the server to generate chart specs, and Vega-Lite on the
+      client to render them with external data.
+    </p>
+
+    <div class="controls">
+      <div class="control-group">
+        <label for="chart-type">Chart Type:</label>
+        <select id="chart-type">
+          <option value="line">Line</option>
+          <option value="bar">Bar</option>
+          <option value="point">Scatter</option>
+        </select>
+      </div>
+
+      <div class="control-group">
+        <label for="x-field">X Field:</label>
+        <select id="x-field">
+          <option value="x">x</option>
+          <option value="category">category</option>
+        </select>
+      </div>
+
+      <div class="control-group">
+        <label for="y-field">Y Field:</label>
+        <select id="y-field">
+          <option value="y">y</option>
+        </select>
+      </div>
+
+      <div class="control-group">
+        <label for="color-field">Color Field:</label>
+        <select id="color-field">
+          <option value="">None</option>
+          <option value="category">category</option>
+        </select>
+      </div>
+
+      <button id="update-chart">Update Chart</button>
+    </div>
+
+    <div id="vis"></div>
+
+    <script>
+      // Function to render a chart with a spec and data URL
+      async function renderChart(spec, dataUrl) {
+        // Set the data source in the spec
+        spec.data = { url: dataUrl };
+
+        // Render with Vega-Lite
+        return vegaEmbed('#vis', spec, { actions: true });
+      }
+
+      // Function to get a chart spec from the server
+      async function getChartSpec(params = {}) {
+        const queryString = new URLSearchParams(params).toString();
+        const response = await fetch(`/api/chart-spec?${queryString}`);
+        return response.json();
+      }
+
+      // Initial render
+      window.addEventListener('DOMContentLoaded', async () => {
+        const initialSpec = await getChartSpec({
+          x: 'x',
+          y: 'y',
+          color: 'category',
+          type: 'line',
+        });
+
+        renderChart(initialSpec, '/api/data.json');
+      });
+
+      // Update chart when button is clicked
+      document.getElementById('update-chart').addEventListener('click', async () => {
+        const chartType = document.getElementById('chart-type').value;
+        const xField = document.getElementById('x-field').value;
+        const yField = document.getElementById('y-field').value;
+        const colorField = document.getElementById('color-field').value;
+
+        const spec = await getChartSpec({
+          x: xField,
+          y: yField,
+          color: colorField || null,
+          type: chartType,
+        });
+
+        renderChart(spec, '/api/data.json');
+      });
+    </script>
+  </body>
+</html>

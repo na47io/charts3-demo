@@ -1,0 +1,11 @@
+[project]
+name = "charts2"
+version = "0.1.0"
+description = "Add your description here"
+readme = "README.md"
+requires-python = ">=3.12"
+dependencies = [
+    "altair>=5.5.0",
+    "flask>=3.1.0",
+    "flask-cors>=5.0.1",
+]
